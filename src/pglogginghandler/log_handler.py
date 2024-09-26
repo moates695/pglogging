@@ -2,6 +2,11 @@ import logging
 import psycopg2 as pg
 
 class PostgresHandler(logging.Handler):
+    def __new__(cls, logger_name, job_id, table, db_config):
+        instance = super(PostgresHandler, cls).__new__(cls)
+        instance.__init__(logger_name, job_id, table, db_config)
+        return instance.logger
+
     def __init__(self, logger_name, job_id, table, db_config):
         try:
             logging.Handler.__init__(self)
@@ -42,7 +47,7 @@ class PostgresHandler(logging.Handler):
             self.setFormatter(formatter)
 
             logger.addHandler(self)
-            logger.info(f"Logger {self.logger_name} setup with job_id {self.job_id}")
+            logger.info(f"Logger: {self.logger_name} setup with job_id: {self.job_id}")
 
             return logger
         except Exception as e:
