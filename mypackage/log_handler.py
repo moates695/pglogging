@@ -2,23 +2,22 @@ import logging
 import psycopg2 as pg
 
 class PostgresHandler(logging.Handler):
-    def __init__(self, db_config, table, job_id):
+    def __init__(self, logger_name, job_id, table, db_config):
         logging.Handler.__init__(self)
         self.connection = pg.connect(**db_config)
         self.cursor = self.connection.cursor()
+        self.logger_name = logger_name
         self.table = table
         self.job_id = job_id
         self._create_table_if_not_exists()
-
-    def _set_time_zone(self):
-        self.connection.commit()
+        self.logger = self._setup_logging()
 
     def _create_table_if_not_exists(self):
         self.cursor.execute("set time zone 'UTC'")
-        self.cursor.execute("""
-        create table if not exists %s (
+        self.cursor.execute(f"""
+        create table if not exists {self.table} (
             id serial primary key,
-            created_at timestampz default now(),
+            created_at timestamptz default now(),
             name varchar(255),
             levelname varchar(50),
             message text,
@@ -26,10 +25,23 @@ class PostgresHandler(logging.Handler):
         )""", (self.table,))
         self.connection.commit()
 
+    def _setup_logging(self):
+        logger = logging.getLogger(self.logger_name)
+        logger.setLevel(logging.DEBUG)
+
+        self.setLevel(logging.DEBUG)
+
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self.setFormatter(formatter)
+
+        logger.addHandler(self)
+        logger.info(f"Logger {self.logger_name} setup with job_id {self.job_id}")
+        return logger
+
     def emit(self, record):
         log_entry = self.format(record)
-        self.cursor.execute("""
-        insert into flow_logs 
+        self.cursor.execute(f"""
+        insert into {self.table}
         (name, levelname, message, job_id) 
         values 
         (%s, %s, %s, %s)
@@ -40,3 +52,11 @@ class PostgresHandler(logging.Handler):
         self.cursor.close()
         self.connection.close()
         logging.Handler.close(self)
+
+    
+    
+    def get_logger(self):
+        return self.logger
+    
+    def set_job_id(self, job_id):
+        self.job_id = job_id
