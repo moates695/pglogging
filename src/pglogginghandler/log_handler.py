@@ -43,6 +43,8 @@ class PostgresHandler(logging.Handler):
 
             logger.addHandler(self)
             logger.info(f"Logger {self.logger_name} setup with job_id {self.job_id}")
+
+            return logger
         except Exception as e:
             logging.error(f"Error setting up logging: {e}")        
 
